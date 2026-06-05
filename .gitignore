@@ -8,3 +8,4 @@
 *.Rcheck
 src/*.o
 src/*.so
+.claude

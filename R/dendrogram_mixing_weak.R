@@ -5,8 +5,7 @@ dendrogram_mixing_1d_weak <- function(ps, thetas, sigmas){
      n <- length(thetas)
      if (n < 2) stop("need n >= 2")
      harmonic_means = outer(ps, ps, "*") / outer(ps, ps, "+")
-     # all_distance <- (outer(thetas, thetas, "-"))^2 + outer(sigmas, sigmas, FUN = function(a, b) abs(a - b))
-     all_distance <- (outer(thetas, thetas, "-"))^2
+     all_distance <- (outer(thetas, thetas, "-"))^2 + outer(sigmas, sigmas, FUN = function(a, b) abs(a - b))
      origD <- harmonic_means * all_distance
      # dynamic cluster distance matrix (between current clusters)
      D <- origD
@@ -59,8 +58,7 @@ dendrogram_mixing_1d_weak <- function(ps, thetas, sigmas){
           # and recompute distances between new cluster i and all others
           D <- D[-j, -j, drop = FALSE]
           hm = (ps[i] * ps[-i]) / (ps[i] + ps[-i])
-          # dm = ((thetas[i] - thetas[-i])^2) + abs(sigmas[i] - sigmas[-i])
-          dm = ((thetas[i] - thetas[-i])^2)
+          dm = ((thetas[i] - thetas[-i])^2) + abs(sigmas[i] - sigmas[-i])
           D[i, -i] = hm * dm
           D[-i, i] = hm * dm
           D[i, i] = Inf
@@ -146,7 +144,6 @@ dendrogram_mixing_multid_weak <- function(ps, thetas, sigmas){
      G = list(ps = ps, thetas = thetas, sigmas = sigmas)
      Gs = list(G)
      for (step in seq_len(n - 2)) {
-          print(step)
           # pick closest pair (first occurrence if ties)
           idx <- which(D == min(D), arr.ind = TRUE)[1, ]
           i <- idx[1]; j <- idx[2]
@@ -159,8 +156,6 @@ dendrogram_mixing_multid_weak <- function(ps, thetas, sigmas){
           new_members <- c(clusters[[i]]$members, clusters[[j]]$members)
           new_p = clusters[[i]]$p + clusters[[j]]$p
           new_theta = (clusters[[i]]$p * clusters[[i]]$theta + clusters[[j]]$p * clusters[[j]]$theta) / new_p
-          print(dim(clusters[[i]]$sigma))
-          print(clusters[[i]]$theta - new_theta)
           new_sigma = (clusters[[i]]$p * clusters[[i]]$sigma
                        + clusters[[j]]$p * clusters[[j]]$sigma
                        + clusters[[i]]$p * tcrossprod(clusters[[i]]$theta - new_theta)
@@ -176,7 +171,7 @@ dendrogram_mixing_multid_weak <- function(ps, thetas, sigmas){
           cluster_labels <- cluster_labels[-j]
           ps <- ps[-j]
           ps[i] = new_p
-          thetas <- thetas[-j, ]
+          thetas <- thetas[-j, , drop = FALSE]
           thetas[i, ] = new_theta
           sigmas <- sigmas[-j]
           sigmas[[i]] = new_sigma
@@ -187,10 +182,9 @@ dendrogram_mixing_multid_weak <- function(ps, thetas, sigmas){
           D <- D[-j, -j, drop = FALSE]
           hm = ps[i] * ps[-i] / (ps[i] + ps[-i])
           mat_vec <- t(sapply(sigmas, as.vector))
-          # dist_mat_sigma <- as.matrix(dist(mat_vec, method = "euclidean"))
           if (step < n-2) {
-               dm = rowSums((thetas[rep(i, n - step - 1), ] - thetas[-i, ])^2)
-               dms = sqrt(rowSums((mat_vec[rep(i, n - step - 1), ] - mat_vec[-i, ])^2))
+               dm = rowSums((thetas[rep(i, n - step - 1), , drop = FALSE] - thetas[-i, , drop = FALSE])^2)
+               dms = sqrt(rowSums((mat_vec[rep(i, n - step - 1), , drop = FALSE] - mat_vec[-i, , drop = FALSE])^2))
           } else {
                dm = sum((thetas[i, ] - thetas[-i, ])^2)
                dms = sqrt(sum((mat_vec[i, ] - mat_vec[-i, ])^2))
@@ -228,9 +222,8 @@ dendrogram_mixing_multid_weak <- function(ps, thetas, sigmas){
      cluster_labels <- cluster_labels[-j]
      ps <- ps[-j]
      ps[i] = new_p
-     thetas <- thetas[-j, ]
-
-     thetas = new_theta
+     thetas <- thetas[-j, , drop = FALSE]
+     thetas[i, ] = new_theta
      sigmas <- sigmas[-j]
      sigmas[[i]] = new_sigma
      new_G = list(ps = ps, thetas = thetas, sigmas = sigmas)

@@ -18,7 +18,7 @@ dendrogram_mixing <- function(ps, thetas, sigmas=NULL) {
      }
 
      if (nrow(thetas)!=length(ps)){
-          print("Number of atoms theta must equal number of probability ps")
+          stop("Number of atoms theta must equal number of probability ps")
      }
 
      if(is.null(sigmas)==TRUE){

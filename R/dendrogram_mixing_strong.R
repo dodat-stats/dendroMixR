@@ -140,7 +140,7 @@ dendrogram_mixing_multid_strong <- function(ps, thetas){
           cluster_labels <- cluster_labels[-j]
           ps <- ps[-j]
           ps[i] = new_p
-          thetas <- thetas[-j, ]
+          thetas <- thetas[-j, , drop = FALSE]
           thetas[i, ] = new_theta
           new_G = list(ps = ps, thetas = thetas)
           Gs = append(Gs, list(new_G))
@@ -148,7 +148,7 @@ dendrogram_mixing_multid_strong <- function(ps, thetas){
           # and recompute distances between new cluster i and all others
           D <- D[-j, -j, drop = FALSE]
           hm = ps[i] * ps[-i] / (ps[i] + ps[-i])
-          if (step < n-2) dm = rowSums((thetas[rep(i, n - step - 1), ] - thetas[-i, ])^2) else dm = sum((thetas[i, ] - thetas[-i, ])^2)
+          if (step < n-2) dm = rowSums((thetas[rep(i, n - step - 1), , drop = FALSE] - thetas[-i, , drop = FALSE])^2) else dm = sum((thetas[i, ] - thetas[-i, ])^2)
           D[i, -i] = hm * dm
           D[-i, i] = hm * dm
           D[i, i] = Inf
@@ -174,8 +174,8 @@ dendrogram_mixing_multid_strong <- function(ps, thetas){
      cluster_labels <- cluster_labels[-j]
      ps <- ps[-j]
      ps[i] = new_p
-     thetas <- thetas[-j, ]
-     thetas[i] = new_theta
+     thetas <- thetas[-j, , drop = FALSE]
+     thetas[i, ] = new_theta
      new_G = list(ps = ps, thetas = thetas)
      Gs = append(Gs, list(new_G))
      # recursive order builder: positive integers are merge-row indices (1..n-1), negative are leaves
