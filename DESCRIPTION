@@ -3,8 +3,8 @@ Package: dendroMixR
 Title: Dendrogram Mixing Measures
 Version: 0.0.0.9000
 Authors@R: c(
-    person("Dat", "Do", , "dodat.stats@gmail.com", role = c("aut", "cre")),
-    person("Linh", "Do", , "linhdo.math@gmail.com", role = c("aut", "ctb")))
+    person("Linh", "Do", , "linhdo.math@gmail.com", role = "aut"),
+    person("Dat", "Do", , "dodat.stats@gmail.com", role = c("aut", "cre")))
 Description: Tools for summarizing and selecting mixture models via dendrograms
     constructed from overfitted latent mixing measures. The methods bridge
     hierarchical clustering and mixture modeling, providing consistent selection
