@@ -88,12 +88,61 @@ components.
 
 When the component variance is known and shared across components (the
 *strongly identifiable* case), `dendrogram_mixing()` only needs weights
-and means: `sigmas = NULL`. This case also covers the common practice of
-overfitting via a hard-clustering method such as $k$-means, which
-implicitly assumes equal, fixed variance across clusters.
+and means: `sigmas = NULL`.
 
-We simulate data from a well-separated 3-component 1-D Gaussian mixture
-with unit variance, then deliberately overfit with $k = 8$ clusters:
+To overfit in a way that actually corresponds to this model, we want the
+maximum-likelihood fit of a location Gaussian mixture *with the variance
+held fixed at its known value* — not a proxy such as $k$-means, whose
+cluster assignments minimize within-cluster sum of squares rather than
+maximizing this specific model's likelihood. There isn't a commonly-used
+off-the-shelf package for that exact fit (packages like `mclust` estimate
+the covariance too), so we borrow the small EM implementation used in the
+paper's own reproduction code (see `code_reproduce_paper/` in the package
+source) that does exactly this:
+
+```{r strong-em-fn}
+em_location_gaussian <- function(x, k, max_iter = 100, tol = 1e-8, n_init = 10) {
+  n <- nrow(x); d <- ncol(x)
+  best_ll <- -Inf; best_result <- NULL
+  x_sq  <- rowSums(x^2)
+  const <- -n * d / 2 * log(2 * pi)
+
+  for (init in seq_len(n_init)) {
+    mu <- x[sample.int(n, k), , drop = FALSE]
+    lp <- rep(-log(k), k)
+    ll_old <- -Inf
+
+    for (iter in seq_len(max_iter)) {
+      mu_sq    <- rowSums(mu^2)
+      log_resp <- -0.5 * (x_sq - 2 * tcrossprod(x, mu) + rep(mu_sq, each = n))
+      for (j in seq_len(k)) log_resp[, j] <- log_resp[, j] + lp[j]
+
+      log_max  <- do.call(pmax, as.data.frame(log_resp))
+      log_resp <- log_resp - log_max
+      rs       <- rowSums(exp(log_resp))
+      ll_new   <- sum(log_max + log(rs)) + const
+      if (abs(ll_new - ll_old) < tol * abs(ll_old)) break
+      ll_old <- ll_new
+
+      # M-step: weights update, means update -- variance is *not* re-estimated
+      resp <- exp(log_resp) / rs
+      nk   <- colSums(resp)
+      lp   <- log(nk / n)
+      mu   <- crossprod(resp, x) / nk
+    }
+    if (ll_new > best_ll) {
+      best_ll     <- ll_new
+      best_result <- list(ps = as.numeric(nk / n), thetas = mu)
+    }
+  }
+  best_result
+}
+```
+
+We simulate data from a well-separated 3-component 1-D Gaussian mixture with unit
+variance, then deliberately overfit with $k = 8$ components using this EM routine
+(passing the data as an $n \times 1$ matrix, since the function is written for
+general dimension $d$ with known covariance $=I_d$):
 
 ```{r strong-sim}
 n   <- 2000
@@ -104,26 +153,33 @@ k0  <- 3
 z <- sample(k0, n, replace = TRUE, prob = ps0)
 x  <- rnorm(n, mu0[z], sd = 1)
 
-k_over <- 8
-km <- kmeans(x, centers = k_over, nstart = 20)
-ps_over    <- as.numeric(table(km$cluster)) / n
-theta_over <- as.numeric(km$centers)
+k_over   <- 8
+fit_over <- em_location_gaussian(matrix(x, ncol = 1), k = k_over)
+ps_over    <- fit_over$ps
+theta_over <- as.numeric(fit_over$thetas)
+sort(theta_over)
 ```
 
-Before merging, it's worth looking at what the overfitted fit actually produced. The
-histogram below shows the simulated data together with the true 3-component density
-and the overfitted 8-component density (known variance $=1$ for both). The overfitted
-fit tracks the true density reasonably well but is visibly "bumpier" — a symptom of
-splitting each true component across more than one atom:
+Before merging, it's worth looking at what this overfitted fit actually produced.
+The histogram below shows the simulated data together with the true 3-component
+density and the overfitted 8-component density (both use the known variance $=1$).
+Perhaps surprisingly, the two lines are nearly indistinguishable — the overfitted
+*density* is an excellent fit, exactly as mixture theory predicts (density estimation
+converges fast even when the model is overfitted). The individual overfitted atom
+locations printed above tell a different story, though: several of the 8 values sit
+well away from any of the true means $-4, 0, 5$, which is the slow *parameter*
+convergence the paper's introduction describes. A good density fit alone doesn't
+imply good parameter estimates -- this is precisely the gap `dendrogram_mixing()` is
+designed to close:
 
-```{r strong-viz, fig.alt = "Histogram of the simulated 1-D data with the true 3-component density and the overfitted 8-component density overlaid."}
+```{r strong-viz, fig.alt = "Histogram of the simulated 1-D data with the true 3-component density and the overfitted 8-component density overlaid; the two lines are nearly indistinguishable."}
 xgrid     <- seq(min(x), max(x), length.out = 400)
 dens_true <- sapply(xgrid, function(v) sum(ps0 * dnorm(v, mu0, sd = 1)))
 dens_over <- sapply(xgrid, function(v) sum(ps_over * dnorm(v, theta_over, sd = 1)))
 df_dens <- data.frame(
   x       = rep(xgrid, 2),
   density = c(dens_true, dens_over),
-  Model   = rep(c("True (k0 = 3)", "Overfitted fit (k = 8)"), each = length(xgrid))
+  Model   = rep(c("True (k0 = 3)", "Overfitted EM fit (k = 8)"), each = length(xgrid))
 )
 
 ggplot(data.frame(x = x), aes(x = x)) +
@@ -133,9 +189,9 @@ ggplot(data.frame(x = x), aes(x = x)) +
              aes(x = x, y = density, color = Model, linetype = Model),
              linewidth = 1) +
   scale_color_manual(values = c("True (k0 = 3)" = "black",
-                                 "Overfitted fit (k = 8)" = "#e41a1c")) +
+                                 "Overfitted EM fit (k = 8)" = "#e41a1c")) +
   scale_linetype_manual(values = c("True (k0 = 3)" = "solid",
-                                    "Overfitted fit (k = 8)" = "dashed")) +
+                                    "Overfitted EM fit (k = 8)" = "dashed")) +
   theme_classic(base_size = 13) +
   theme(legend.position = "top", legend.title = element_blank()) +
   labs(x = "x", y = "Density",
@@ -151,8 +207,10 @@ dmm1$hc$height
 
 `dmm1$Gs` holds the mixing measure at every level of the tree, from
 $k = 8$ atoms down to $k = 1$. Cutting at the true $k_0 = 3$
-(`Gs[[k_over - k0 + 1]]`) recovers weights and means very close to the
-truth (0.3/0.4/0.3 and $-4, 0, 5$), even though no re-fitting took place:
+(`Gs[[k_over - k0 + 1]]`) recovers means very close to the truth
+($-4, 0, 5$) and weights reasonably close to it (0.3/0.4/0.3), even
+though no re-fitting took place -- a big improvement over reading off
+any 3 of the 8 individual overfitted atoms directly:
 
 ```{r strong-merged}
 merged3 <- dmm1$Gs[[k_over - k0 + 1]]
