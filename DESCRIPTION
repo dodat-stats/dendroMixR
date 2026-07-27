@@ -23,8 +23,12 @@ Suggests:
     knitr,
     rmarkdown,
     ggplot2,
-    randomcoloR
+    randomcoloR,
+    mclust,
+    MASS,
+    pkgdown
 Encoding: UTF-8
 NeedsCompilation: no
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 8.0.0
+RoxygenNote: 7.3.1
+VignetteBuilder: knitr

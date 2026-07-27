@@ -1,3 +1,9 @@
 ^\.claude$
 ^dendroMixR\.Rproj$
 ^\.Rproj\.user$
+^_pkgdown\.yml$
+^docs$
+^pkgdown$
+^paper$
+^code_reproduce_paper$
+^test$

@@ -1,0 +1,34 @@
+url: https://dodat-stats.github.io/dendroMixR/
+
+template:
+  bootstrap: 5
+  bslib:
+    primary: "#377eb8"
+
+home:
+  title: dendroMixR
+
+navbar:
+  structure:
+    left:  [intro, reference, articles, news]
+    right: [search, github]
+  components:
+    articles:
+      text: Articles
+      menu:
+      - text: Getting started
+        href: articles/getting-started.html
+
+reference:
+- title: Constructing the dendrogram
+  desc: >
+    Build a dendrogram of mixing measures from an (overfitted) mixture
+    model fit by iteratively merging its most similar atoms.
+  contents:
+  - dendrogram_mixing
+- title: Visualization
+  desc: >
+    Plot the dendrogram of mixing measures produced by
+    `dendrogram_mixing()`.
+  contents:
+  - plot_dendrogram_mixing

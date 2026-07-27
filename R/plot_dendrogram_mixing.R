@@ -30,11 +30,15 @@ plot_dendrogram_mixing <- function(dmm, dim = 1,
      heights_cumsum <- cumsum(c(0, heights)[-(K_bar + 1)])
 
      # collect theta matrices
+     # `as.matrix()` already yields the correct (atoms x dim) orientation at
+     # every level: for 1-D inputs `thetas` is a plain length-k vector, which
+     # becomes a k x 1 column matrix; for multi-D inputs `thetas` is stored
+     # as a (k x d) matrix at every merge level -- including the final,
+     # 1-atom level, since the merge routines preserve matrix shape via
+     # `drop = FALSE`. No transpose is needed (or correct) at any level.
      Theta <- vector("list", K_bar)
      for (s in seq_len(K_bar)) {
-          th <- as.matrix(Gs[[s]]$thetas)
-          if (s == K_bar) th <- t(th)
-          Theta[[s]] <- th
+          Theta[[s]] <- as.matrix(Gs[[s]]$thetas)
      }
 
      # y range
